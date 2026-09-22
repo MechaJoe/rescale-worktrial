@@ -53,5 +53,24 @@ services:
       retries: 20
       start_period: 10s
 
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      # The app and the API share this origin: nginx proxies /api to `backend`,
+      # so the browser makes no cross-origin request and needs no backend port.
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      # 127.0.0.1 rather than `localhost`: the container resolves localhost to
+      # ::1 first, and nginx listens only on IPv4, so the probe would be refused.
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
 volumes:
   postgres_data:

@@ -1,7 +1,7 @@
 COMPOSE ?= docker compose
 
 .DEFAULT_GOAL := help
-.PHONY: help build up seed stop clean test logs
+.PHONY: help build up dev seed stop clean test logs
 
 help: ## Show the available targets
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -16,6 +16,15 @@ up: ## Start the whole stack and wait until it is serving
 	@echo "  API:      http://localhost:8000/api/jobs/"
 	@echo "  Admin:    http://localhost:8000/admin/"
 	@echo "  Postgres: localhost:5433 (jobs/jobs)"
+
+# The containerised frontend publishes 5173, which is also Vite's port, so it is
+# stopped here to leave the port free for the local dev server.
+dev: ## Run only the API and database, for developing the frontend locally
+	$(COMPOSE) up -d --wait db backend
+	$(COMPOSE) stop frontend
+	@echo ""
+	@echo "  Then, in ./frontend:  nvm use && npm install && npm run dev"
+	@echo "  The dev server proxies /api to http://localhost:8000"
 
 seed: ## Replace the data with sample jobs covering every status
 	$(COMPOSE) exec backend python manage.py seed_jobs --clear
