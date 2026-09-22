@@ -1,7 +1,7 @@
 COMPOSE ?= docker compose
 
 .DEFAULT_GOAL := help
-.PHONY: help build up stop clean test logs
+.PHONY: help build up seed stop clean test logs
 
 help: ## Show the available targets
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -16,6 +16,9 @@ up: ## Start the whole stack and wait until it is serving
 	@echo "  API:      http://localhost:8000/api/jobs/"
 	@echo "  Admin:    http://localhost:8000/admin/"
 	@echo "  Postgres: localhost:5433 (jobs/jobs)"
+
+seed: ## Replace the data with sample jobs covering every status
+	$(COMPOSE) exec backend python manage.py seed_jobs --clear
 
 # Brings the stack up itself rather than assuming `make up` has been run, so a
 # clean checkout can go straight to `make test`. Django builds and drops its own
