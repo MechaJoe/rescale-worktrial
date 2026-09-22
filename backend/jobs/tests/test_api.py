@@ -1,5 +1,6 @@
 """Tests for the jobs API, covering the contract the frontend depends on."""
 
+import logging
 from unittest import mock
 
 from django.test import TestCase
@@ -14,6 +15,11 @@ class JobAPITestCase(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.list_url = reverse("job-list")
+        # Several tests assert on 4xx/5xx responses, which Django logs to
+        # `django.request`. Silencing it keeps `make test` output showing test
+        # results rather than tracebacks for failures the suite asked for.
+        logging.disable(logging.CRITICAL)
+        self.addCleanup(logging.disable, logging.NOTSET)
 
     def detail_url(self, job_id: int) -> str:
         return reverse("job-detail", args=[job_id])
