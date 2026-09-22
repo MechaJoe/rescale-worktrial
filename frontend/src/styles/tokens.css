@@ -1,0 +1,86 @@
+/*
+ * Design tokens. Every colour, space and radius in the app resolves to one of
+ * these, so the palette can change in one place and light/dark stay in step.
+ */
+:root {
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-pill: 999px;
+
+  --surface: #ffffff;
+  --surface-sunken: #f6f8fa;
+  --surface-raised: #ffffff;
+  --surface-hover: #f0f3f6;
+  --border: #d5dbe2;
+  --border-strong: #b9c2cc;
+
+  --text: #16232e;
+  --text-muted: #5c6b7a;
+  --text-inverse: #ffffff;
+
+  --accent: #0b5cad;
+  --accent-hover: #094a8c;
+  --accent-subtle: #e7f0fa;
+
+  --danger: #b3261e;
+  --danger-hover: #8f1e18;
+  --danger-subtle: #fdecea;
+
+  /* Status colours: each pairs a readable foreground with a tinted background.
+     Never the only signal — every badge also carries its label as text. */
+  --status-pending-fg: #7a4b00;
+  --status-pending-bg: #fdf1dc;
+  --status-running-fg: #0b4f9e;
+  --status-running-bg: #e3eefb;
+  --status-completed-fg: #1a6334;
+  --status-completed-bg: #e4f3e8;
+  --status-failed-fg: #9b1c14;
+  --status-failed-bg: #fdeae8;
+
+  --shadow-sm: 0 1px 2px rgb(16 35 46 / 0.08);
+  --focus-ring: 0 0 0 3px rgb(11 92 173 / 0.35);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #10161c;
+    --surface-sunken: #161e26;
+    --surface-raised: #1b242d;
+    --surface-hover: #212c37;
+    --border: #2c3846;
+    --border-strong: #3d4c5c;
+
+    --text: #e6edf3;
+    --text-muted: #9aa8b6;
+
+    --accent: #5fa8f5;
+    --accent-hover: #86bdf8;
+    --accent-subtle: #17293d;
+
+    --danger: #f08b82;
+    --danger-hover: #f6a9a2;
+    --danger-subtle: #3a1d1a;
+
+    --status-pending-fg: #f0c987;
+    --status-pending-bg: #37290f;
+    --status-running-fg: #8fc0f7;
+    --status-running-bg: #13263c;
+    --status-completed-fg: #86d29c;
+    --status-completed-bg: #142e1e;
+    --status-failed-fg: #f3a09a;
+    --status-failed-bg: #391916;
+
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+    --focus-ring: 0 0 0 3px rgb(95 168 245 / 0.4);
+  }
+}

@@ -1,36 +1,74 @@
-import { useEffect, useState } from 'react'
+import { ErrorBanner } from './components/ErrorBanner'
+import { JobTable } from './components/JobTable'
+import { StatusFilter } from './components/StatusFilter'
+import { useJobs } from './hooks/useJobs'
 
-import { listJobs } from './api/client'
-import type { Job } from './api/types'
+import styles from './App.module.css'
 
-/**
- * Placeholder shell. It exists to prove the wiring — React, the `/api` proxy,
- * and the Django backend — end to end, and is replaced by the real dashboard.
- */
 export default function App() {
-  const [jobs, setJobs] = useState<Job[]>([])
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    listJobs()
-      .then((page) => setJobs(page.results))
-      .catch((cause: Error) => setError(cause.message))
-  }, [])
+  const {
+    jobs,
+    status,
+    setStatus,
+    isLoading,
+    error,
+    hasNext,
+    hasPrevious,
+    goToNext,
+    goToPrevious,
+    reload,
+  } = useJobs()
 
   return (
-    <main>
-      <h1>Job Management Dashboard</h1>
-      {error ? (
-        <p role="alert">{error}</p>
-      ) : (
-        <ul>
-          {jobs.map((job) => (
-            <li key={job.id}>
-              {job.name} — {job.status}
-            </li>
-          ))}
-        </ul>
-      )}
-    </main>
+    <div className={styles.page}>
+      <header className={styles.header}>
+        <h1 className={styles.title}>Jobs</h1>
+        <p className={styles.subtitle}>Computational jobs and their current status.</p>
+      </header>
+
+      <main className={styles.main}>
+        <div className={styles.toolbar}>
+          <StatusFilter value={status} onChange={setStatus} />
+
+          <div className={styles.controls}>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={reload}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Refreshing…' : 'Refresh'}
+            </button>
+
+            {/* Previous/Next rather than numbered pages: keyset pagination has
+                no page numbers and no total, and a bounded page keeps the DOM
+                small however large the table grows. Top-right, as in the AWS
+                console, so paging never means scrolling past the rows first. */}
+            <nav className={styles.pagination} aria-label="Pagination">
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={goToPrevious}
+                disabled={!hasPrevious || isLoading}
+              >
+                ← Previous
+              </button>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={goToNext}
+                disabled={!hasNext || isLoading}
+              >
+                Next →
+              </button>
+            </nav>
+          </div>
+        </div>
+
+        <ErrorBanner message={error} onRetry={reload} />
+
+        <JobTable jobs={jobs} isLoading={isLoading} hasError={error !== null} />
+      </main>
+    </div>
   )
 }
