@@ -106,10 +106,24 @@ export type ListJobsOptions =
   | { cursor: string; status?: never; pageSize?: never }
   | { cursor?: never; status?: StatusType | null; pageSize?: number }
 
+/**
+ * Reduce a server-built URL to its path and query.
+ *
+ * DRF builds cursor links as absolute URLs from the Host header it received,
+ * which behind a proxy may name a host or port the browser cannot reach. The
+ * path and query carry everything that identifies the page, so resolving them
+ * against the app's own origin keeps paging working however the proxy is set.
+ */
+function toSameOrigin(url: string): string {
+  const { pathname, search } = new URL(url, window.location.origin)
+  return pathname + search
+}
+
 export function listJobs(options: ListJobsOptions = {}) {
   if (options.cursor) {
-    // Follow the server's own link rather than rebuilding it.
-    return request<CursorPage<Job>>(options.cursor)
+    // Follow the server's own link rather than rebuilding it: its query already
+    // carries the cursor and the filter that produced this page.
+    return request<CursorPage<Job>>(toSameOrigin(options.cursor))
   }
 
   const params = new URLSearchParams()

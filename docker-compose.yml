@@ -25,7 +25,10 @@ services:
       DATABASE_URL: postgres://jobs:jobs@db:5432/jobs
       DJANGO_SECRET_KEY: dev-only-insecure-key-change-me
       DJANGO_DEBUG: "false"
-      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0,backend
+      # nginx forwards the Host the browser used, so every name the app is
+      # reached by must be listed — including `frontend`, which is how a client
+      # inside the compose network (the E2E test runner) addresses it.
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0,backend,frontend
       DJANGO_CORS_ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
     ports:
       - "8000:8000"
