@@ -1,36 +1,42 @@
 """Domain models for the job dashboard.
 
 A :class:`Job` owns an append-only log of :class:`JobStatus` rows. Nothing ever
-mutates a status: moving a job to a new state records a new entry, so the log
+mutates a status: moving a job to a new state appends an entry, so the log
 doubles as the job's audit history.
+
+``Job.current_status`` holds the newest entry's state, so the dashboard can
+filter on it with an index. It is written in the same transaction as the entry
+it reflects, so it is a derived column rather than a cache: no reader ever
+observes it disagreeing with the log, and nothing needs to fall back to the log
+on read.
 """
 
 from django.db import models, transaction
-from django.db.models import OuterRef, Subquery
 from django.utils import timezone
 
 
-class JobQuerySet(models.QuerySet):
-    def with_current_status(self) -> "JobQuerySet":
-        """Annotate each job with the ``status_type`` of its latest status entry.
+class StatusType(models.TextChoices):
+    """The states a job can occupy, in the order a job normally moves through them."""
 
-        Uses a correlated subquery rather than a join + ``DISTINCT ON`` so the
-        annotation stays composable, and so the database only resolves it for
-        the rows a paginated response actually returns. The subquery is a
-        one-row lookup on ``jobs_jobstatus (job_id, -timestamp, -id)``.
-        """
-        latest_status = JobStatus.objects.filter(job=OuterRef("pk")).values("status_type")[:1]
-        return self.annotate(current_status=Subquery(latest_status))
+    PENDING = "PENDING", "Pending"
+    RUNNING = "RUNNING", "Running"
+    COMPLETED = "COMPLETED", "Completed"
+    FAILED = "FAILED", "Failed"
 
 
 class Job(models.Model):
     """A computational job submitted to the platform."""
 
     name = models.CharField(max_length=255)
+    current_status = models.CharField(
+        max_length=16,
+        choices=StatusType.choices,
+        null=True,
+        blank=True,
+        help_text="Newest entry in the job's status history. Maintained by record_status().",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    objects = JobQuerySet.as_manager()
 
     class Meta:
         # Newest first, with `id` as a tiebreaker so the ordering is total and
@@ -38,7 +44,13 @@ class Job(models.Model):
         ordering = ("-created_at", "-id")
         indexes = [
             models.Index(fields=("-created_at", "-id"), name="job_created_desc_idx"),
-            models.Index(fields=("name",), name="job_name_idx"),
+            # Equality on `current_status` plus the list's sort order as the
+            # trailing columns, so a filtered page is one bounded index range
+            # scan with no sort step.
+            models.Index(
+                fields=("current_status", "-created_at", "-id"),
+                name="job_status_created_idx",
+            ),
         ]
 
     def __str__(self) -> str:
@@ -46,37 +58,46 @@ class Job(models.Model):
 
     @transaction.atomic
     def record_status(self, status_type: str, timestamp=None) -> "JobStatus":
-        """Append a new status entry and return it.
+        """Append a status entry and update ``current_status`` to match.
 
-        This is the only supported way to change a job's state; the rest of the
-        codebase goes through it so the history stays consistent.
+        This is the only supported way to move a job between states. Both
+        writes commit together, which is what keeps the column and the log in
+        agreement for every reader.
         """
+        # Take a row lock for the rest of the transaction. This serializes
+        # concurrent transitions *for this job*, so two of them cannot
+        # interleave and leave `current_status` disagreeing with the newest log
+        # entry. Jobs see a handful of transitions each, so it never becomes a
+        # throughput bottleneck. The fetched row is discarded: `update_fields`
+        # below means this instance's other columns are never written back.
+        Job.objects.select_for_update().get(pk=self.pk)
+
         status = self.statuses.create(
             status_type=status_type, timestamp=timestamp or timezone.now()
         )
-        # `auto_now` only fires on Job.save(), so touch the row explicitly to
-        # keep `updated_at` meaningful for status-only changes.
-        Job.objects.filter(pk=self.pk).update(updated_at=timezone.now())
+        # Derive from the log rather than assuming the row just written is the
+        # newest one: callers may backdate `timestamp`.
+        self.current_status = self.latest_status()
+        # `auto_now` refreshes `updated_at`, which a status-only change would
+        # otherwise miss, since it only fires on Job.save(). Saving `self`
+        # rather than a second instance keeps both columns correct in memory,
+        # so the caller can serialize this object without re-reading it.
+        self.save(update_fields=("current_status", "updated_at"))
         return status
 
     def latest_status(self) -> str | None:
-        """The job's current ``status_type``, or ``None`` if it has no history.
+        """Derive the newest ``status_type`` from the history.
 
-        Prefer the ``current_status`` annotation from
-        :meth:`JobQuerySet.with_current_status` when reading a list of jobs;
-        this method is the single-object fallback and costs one query.
+        This is the definition that ``current_status`` materializes: reads
+        should use the column, while :meth:`record_status` uses this to keep
+        the two equal, and tests can assert that they are. Costs one row from
+        the ``jobstatus_latest_idx`` index.
         """
         return self.statuses.values_list("status_type", flat=True).first()
 
 
 class JobStatus(models.Model):
     """One entry in a job's status history."""
-
-    class StatusType(models.TextChoices):
-        PENDING = "PENDING", "Pending"
-        RUNNING = "RUNNING", "Running"
-        COMPLETED = "COMPLETED", "Completed"
-        FAILED = "FAILED", "Failed"
 
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name="statuses")
     status_type = models.CharField(max_length=16, choices=StatusType.choices)
