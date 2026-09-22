@@ -39,11 +39,15 @@ services:
       sh -c "python manage.py migrate --noinput &&
              gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --access-logfile -"
     healthcheck:
+      # 127.0.0.1, not `localhost`: the container resolves localhost to ::1
+      # first and gunicorn binds IPv4 only, so a localhost probe depends on the
+      # client retrying the next address. Being explicit keeps the check from
+      # relying on that, and saves a refused connection on every interval.
       test:
         - CMD
         - python
         - -c
-        - import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/')
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health/')
       interval: 5s
       timeout: 5s
       retries: 20
