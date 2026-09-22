@@ -8,6 +8,8 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -68,19 +70,15 @@ TEMPLATES = [
 
 
 # --- Database ---------------------------------------------------------------
-#
-# PostgreSQL is the only supported database for running the application. The
-# SQLite branch exists purely so the test suite can run without a server.
+
 
 def database_from_url(url: str) -> dict:
+    """Parse a PostgreSQL connection URL into a Django ``DATABASES`` entry."""
     parsed = urlparse(url)
-    if parsed.scheme == "sqlite":
-        return {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": parsed.path or ":memory:",
-        }
     if parsed.scheme not in {"postgres", "postgresql"}:
-        raise ValueError(f"Unsupported DATABASE_URL scheme: {parsed.scheme!r}")
+        raise ImproperlyConfigured(
+            f"DATABASE_URL must be a postgres:// URL, got {parsed.scheme or 'nothing'!r}."
+        )
     return {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": parsed.path.lstrip("/"),
@@ -88,6 +86,8 @@ def database_from_url(url: str) -> dict:
         "PASSWORD": parsed.password or "",
         "HOST": parsed.hostname or "",
         "PORT": str(parsed.port or ""),
+        # Reusing connections avoids a handshake per request. Set to 0 when
+        # running behind a transaction-mode pooler such as PgBouncer.
         "CONN_MAX_AGE": int(os.environ.get("DJANGO_CONN_MAX_AGE", "60")),
     }
 
