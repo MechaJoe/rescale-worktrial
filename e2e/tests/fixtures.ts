@@ -101,3 +101,13 @@ export async function createJobViaForm(page: Page, name: string): Promise<void> 
   await page.getByRole('button', { name: 'Create job' }).click()
   await waitForList(page)
 }
+
+/** Wait for a job's page to finish loading. */
+export async function waitForJob(page: Page): Promise<void> {
+  await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false')
+}
+
+/** The entries of a job's status history, newest first. */
+export function historyEntries(page: Page): Locator {
+  return page.getByRole('list', { name: 'Status history, newest first' }).getByRole('listitem')
+}
