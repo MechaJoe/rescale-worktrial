@@ -7,8 +7,8 @@ help: ## Show the available targets
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-8s\033[0m %s\n", $$1, $$2}'
 
-build: ## Build the Docker images
-	$(COMPOSE) build
+build: ## Build the Docker images, including the end-to-end test runner
+	$(COMPOSE) --profile test build
 
 up: ## Start the whole stack and wait until it is serving
 	$(COMPOSE) up -d --wait
@@ -30,11 +30,16 @@ seed: ## Replace the data with sample jobs covering every status
 	$(COMPOSE) exec backend python manage.py seed_jobs --clear
 
 # Brings the stack up itself rather than assuming `make up` has been run, so a
-# clean checkout can go straight to `make test`. Django builds and drops its own
-# test database, so this is repeatable regardless of what is in the dev volume.
-test: ## Run the test suites
-	$(COMPOSE) up -d --build --wait db backend
+# clean checkout can go straight to `make test`. It is repeatable whatever is in
+# the dev volume: Django builds and drops its own test database, and each
+# Playwright test deletes the uniquely named jobs it created.
+#
+# The backend unit tests run first because they are fast and pinpoint a broken
+# model or view directly, rather than as a browser timeout several layers away.
+test: ## Run the backend unit tests, then the Playwright end-to-end suite
+	$(COMPOSE) up -d --build --wait db backend frontend
 	$(COMPOSE) run --rm backend python manage.py test
+	$(COMPOSE) --profile test run --rm --build e2e
 
 stop: ## Stop the running containers
 	$(COMPOSE) stop

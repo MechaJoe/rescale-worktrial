@@ -75,5 +75,22 @@ services:
       retries: 20
       start_period: 5s
 
+  # The Playwright suite. Behind a profile so `docker compose up` and `make up`
+  # never start it; `make test` opts in with --profile test.
+  e2e:
+    build:
+      context: ./e2e
+    profiles: ["test"]
+    environment:
+      BASE_URL: http://frontend
+    depends_on:
+      frontend:
+        condition: service_healthy
+    # Chromium uses shared memory heavily, and Docker's default 64 MB /dev/shm
+    # can crash it mid-run; Playwright's documentation recommends host IPC.
+    # `init` reaps the browser's child processes when the run ends.
+    ipc: host
+    init: true
+
 volumes:
   postgres_data:
