@@ -1,0 +1,12 @@
+.panel {
+  padding: var(--space-6);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  text-align: center;
+}
+
+.action {
+  margin-top: var(--space-5);
+  text-decoration: none;
+}

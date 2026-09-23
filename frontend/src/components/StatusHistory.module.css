@@ -1,0 +1,58 @@
+.timeline {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The rail joining the entries, drawn through the centre of each marker. */
+.timeline::before {
+  content: '';
+  position: absolute;
+  top: var(--space-3);
+  bottom: var(--space-3);
+  left: calc(0.375rem - 1px);
+  width: 2px;
+  background: var(--border);
+}
+
+.entry {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0 var(--space-2) var(--space-6);
+}
+
+.marker {
+  position: absolute;
+  left: 0;
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface-raised);
+}
+
+.entry:first-child .marker {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.time {
+  color: var(--text-muted);
+}
+
+.current {
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.empty {
+  margin: 0;
+  color: var(--text-muted);
+}

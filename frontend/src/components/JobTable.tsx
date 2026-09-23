@@ -1,18 +1,12 @@
+import { Link, useLocation } from 'react-router'
+
 import type { Job, StatusType } from '../api/types'
+import { formatTimestamp } from '../lib/format'
+import type { ReturnTo } from '../lib/navigation'
 
 import { JobActions } from './JobActions'
 import { StatusBadge } from './StatusBadge'
 import styles from './JobTable.module.css'
-
-/** Absolute local time; the column is for correlating with logs, not for prose. */
-const TIMESTAMP_FORMAT = new Intl.DateTimeFormat(undefined, {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
-
-function formatTimestamp(iso: string): string {
-  return TIMESTAMP_FORMAT.format(new Date(iso))
-}
 
 interface JobTableProps {
   jobs: Job[]
@@ -61,6 +55,11 @@ export function JobTable({
 type JobRowsProps = Omit<JobTableProps, 'isLoading' | 'hasError'>
 
 function JobRows({ jobs, pendingIds, onChangeStatus, onDelete }: JobRowsProps) {
+  // Handed to each job's page, so its breadcrumb returns to this exact view:
+  // same filter, and — through the history state — the same page.
+  const { pathname, search, state } = useLocation()
+  const from: ReturnTo = { pathname, search, state }
+
   return (
     // The wrapper scrolls horizontally so the table keeps its columns on a
     // narrow screen rather than forcing the page to scroll sideways.
@@ -85,7 +84,11 @@ function JobRows({ jobs, pendingIds, onChangeStatus, onDelete }: JobRowsProps) {
           {jobs.map((job) => (
             <tr key={job.id}>
               <td className={styles.idColumn}>{job.id}</td>
-              <td className={styles.nameCell}>{job.name}</td>
+              <td className={styles.nameCell}>
+                <Link to={`/jobs/${job.id}`} state={{ from }} className={styles.nameLink}>
+                  {job.name}
+                </Link>
+              </td>
               <td>
                 <StatusBadge status={job.status} />
               </td>

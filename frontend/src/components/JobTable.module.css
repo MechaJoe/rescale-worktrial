@@ -64,6 +64,15 @@ td.idColumn {
   font-weight: 500;
 }
 
+.nameLink {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.nameLink:hover {
+  text-decoration: underline;
+}
+
 .timestamp {
   color: var(--text-muted);
   white-space: nowrap;

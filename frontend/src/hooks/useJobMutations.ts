@@ -6,9 +6,13 @@ import { STATUS_LABELS } from '../components/statusLabels'
 
 interface UseJobMutationsOptions {
   /** Called after a job is created, with the job the server returned. */
-  onCreated: (job: Job) => void
-  /** Called after an existing job is changed or deleted. */
+  onCreated?: (job: Job) => void
+  /** Called after an existing job's status is changed. */
   onChanged: () => void
+  /** Called after a job is deleted. Defaults to `onChanged`. */
+  onDeleted?: (job: Job, notice: string) => void
+  /** A notice to show on arrival, such as one carried over from another page. */
+  initialNotice?: string | null
 }
 
 export interface UseJobMutationsResult {
@@ -34,10 +38,12 @@ export interface UseJobMutationsResult {
 export function useJobMutations({
   onCreated,
   onChanged,
+  onDeleted,
+  initialNotice = null,
 }: UseJobMutationsOptions): UseJobMutationsResult {
   const [pendingIds, setPendingIds] = useState<ReadonlySet<number>>(() => new Set())
   const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(initialNotice)
 
   const setPending = useCallback((id: number, pending: boolean) => {
     setPendingIds((current) => {
@@ -50,21 +56,27 @@ export function useJobMutations({
 
   /** Run a request against one job, reporting its outcome either way. */
   const runForJob = useCallback(
-    async (job: Job, request: () => Promise<unknown>, success: string, failure: string) => {
+    async (
+      job: Job,
+      request: () => Promise<unknown>,
+      success: string,
+      failure: string,
+      onSuccess: () => void,
+    ) => {
       setPending(job.id, true)
       setError(null)
       setNotice(null)
       try {
         await request()
         setNotice(success)
-        onChanged()
+        onSuccess()
       } catch (cause) {
         setError(`${failure}: ${(cause as Error).message}`)
       } finally {
         setPending(job.id, false)
       }
     },
-    [onChanged, setPending],
+    [setPending],
   )
 
   const create = useCallback(
@@ -75,7 +87,7 @@ export function useJobMutations({
       // usually about the name, and belong beside the field that caused them.
       const job = await createJob(name)
       setNotice(`Created “${job.name}”.`)
-      onCreated(job)
+      onCreated?.(job)
       return job
     },
     [onCreated],
@@ -88,19 +100,23 @@ export function useJobMutations({
         () => updateJobStatus(job.id, status),
         `Set “${job.name}” to ${STATUS_LABELS[status]}.`,
         `Could not update “${job.name}”`,
+        onChanged,
       ),
-    [runForJob],
+    [runForJob, onChanged],
   )
 
   const remove = useCallback(
-    (job: Job) =>
-      runForJob(
+    (job: Job) => {
+      const success = `Deleted “${job.name}”.`
+      return runForJob(
         job,
         () => deleteJob(job.id),
-        `Deleted “${job.name}”.`,
+        success,
         `Could not delete “${job.name}”`,
-      ),
-    [runForJob],
+        onDeleted ? () => onDeleted(job, success) : onChanged,
+      )
+    },
+    [runForJob, onChanged, onDeleted],
   )
 
   return {
