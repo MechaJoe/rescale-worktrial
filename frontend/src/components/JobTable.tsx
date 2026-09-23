@@ -39,10 +39,28 @@ export function JobTable({
   onChangeStatus,
   onDelete,
 }: JobTableProps) {
-  if (jobs.length === 0) {
-    return <p className={styles.empty}>{emptyMessage(isLoading, hasError)}</p>
-  }
+  return (
+    // The loading state lives on this region rather than on the table, so it
+    // exists whether the list has rows or is showing its empty state — the
+    // first load of an empty database included. Tests wait on it too.
+    <section aria-label="Jobs" aria-busy={isLoading} className={styles.region}>
+      {jobs.length === 0 ? (
+        <p className={styles.empty}>{emptyMessage(isLoading, hasError)}</p>
+      ) : (
+        <JobRows
+          jobs={jobs}
+          pendingIds={pendingIds}
+          onChangeStatus={onChangeStatus}
+          onDelete={onDelete}
+        />
+      )}
+    </section>
+  )
+}
 
+type JobRowsProps = Omit<JobTableProps, 'isLoading' | 'hasError'>
+
+function JobRows({ jobs, pendingIds, onChangeStatus, onDelete }: JobRowsProps) {
   return (
     // The wrapper scrolls horizontally so the table keeps its columns on a
     // narrow screen rather than forcing the page to scroll sideways.
@@ -63,7 +81,7 @@ export function JobTable({
             </th>
           </tr>
         </thead>
-        <tbody aria-busy={isLoading}>
+        <tbody>
           {jobs.map((job) => (
             <tr key={job.id}>
               <td className={styles.idColumn}>{job.id}</td>

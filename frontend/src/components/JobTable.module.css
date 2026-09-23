@@ -46,7 +46,7 @@
   background: var(--surface-hover);
 }
 
-.table tbody[aria-busy='true'] {
+.region[aria-busy='true'] tbody {
   opacity: 0.55;
 }
 
