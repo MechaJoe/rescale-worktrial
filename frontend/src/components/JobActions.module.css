@@ -1,0 +1,15 @@
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.select {
+  /* Fixed, because a native select sizes to its widest option, and
+     "(current)" falls on a different status in each row. */
+  width: 11rem;
+  padding-block: var(--space-1);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}

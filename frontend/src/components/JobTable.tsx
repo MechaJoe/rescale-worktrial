@@ -1,5 +1,6 @@
-import type { Job } from '../api/types'
+import type { Job, StatusType } from '../api/types'
 
+import { JobActions } from './JobActions'
 import { StatusBadge } from './StatusBadge'
 import styles from './JobTable.module.css'
 
@@ -17,6 +18,9 @@ interface JobTableProps {
   jobs: Job[]
   isLoading: boolean
   hasError: boolean
+  pendingIds: ReadonlySet<number>
+  onChangeStatus: (job: Job, status: StatusType) => void
+  onDelete: (job: Job) => void
 }
 
 function emptyMessage(isLoading: boolean, hasError: boolean): string {
@@ -27,7 +31,14 @@ function emptyMessage(isLoading: boolean, hasError: boolean): string {
   return 'No jobs match the current filter.'
 }
 
-export function JobTable({ jobs, isLoading, hasError }: JobTableProps) {
+export function JobTable({
+  jobs,
+  isLoading,
+  hasError,
+  pendingIds,
+  onChangeStatus,
+  onDelete,
+}: JobTableProps) {
   if (jobs.length === 0) {
     return <p className={styles.empty}>{emptyMessage(isLoading, hasError)}</p>
   }
@@ -47,6 +58,9 @@ export function JobTable({ jobs, isLoading, hasError }: JobTableProps) {
             <th scope="col">Status</th>
             <th scope="col">Created</th>
             <th scope="col">Updated</th>
+            <th scope="col" className={styles.actionsColumn}>
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody aria-busy={isLoading}>
@@ -59,6 +73,14 @@ export function JobTable({ jobs, isLoading, hasError }: JobTableProps) {
               </td>
               <td className={styles.timestamp}>{formatTimestamp(job.created_at)}</td>
               <td className={styles.timestamp}>{formatTimestamp(job.updated_at)}</td>
+              <td>
+                <JobActions
+                  job={job}
+                  isPending={pendingIds.has(job.id)}
+                  onChangeStatus={onChangeStatus}
+                  onDelete={onDelete}
+                />
+              </td>
             </tr>
           ))}
         </tbody>

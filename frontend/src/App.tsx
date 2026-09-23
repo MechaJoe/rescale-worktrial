@@ -1,7 +1,14 @@
-import { ErrorBanner } from './components/ErrorBanner'
+import { useCallback, useState } from 'react'
+
+import type { Job } from './api/types'
+import { Banner } from './components/Banner'
+import { ConfirmDialog } from './components/ConfirmDialog'
+import { CreateJobForm } from './components/CreateJobForm'
 import { JobTable } from './components/JobTable'
 import { StatusFilter } from './components/StatusFilter'
+import { useJobMutations } from './hooks/useJobMutations'
 import { useJobs } from './hooks/useJobs'
+import controls from './styles/controls.module.css'
 
 import styles from './App.module.css'
 
@@ -17,13 +24,28 @@ export default function App() {
     goToNext,
     goToPrevious,
     reload,
+    showNewJob,
   } = useJobs()
+
+  const onCreated = useCallback((job: Job) => showNewJob(job.status), [showNewJob])
+  const mutations = useJobMutations({ onCreated, onChanged: reload })
+
+  // The job awaiting delete confirmation, if any.
+  const [jobToDelete, setJobToDelete] = useState<Job | null>(null)
+
+  function confirmDelete() {
+    if (jobToDelete) void mutations.remove(jobToDelete)
+    setJobToDelete(null)
+  }
 
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <h1 className={styles.title}>Jobs</h1>
-        <p className={styles.subtitle}>Computational jobs and their current status.</p>
+        <div>
+          <h1 className={styles.title}>Jobs</h1>
+          <p className={styles.subtitle}>Computational jobs and their current status.</p>
+        </div>
+        <CreateJobForm onCreate={mutations.create} />
       </header>
 
       <main className={styles.main}>
@@ -31,12 +53,7 @@ export default function App() {
           <StatusFilter value={status} onChange={setStatus} />
 
           <div className={styles.controls}>
-            <button
-              type="button"
-              className={styles.secondaryButton}
-              onClick={reload}
-              disabled={isLoading}
-            >
+            <button type="button" className={controls.button} onClick={reload} disabled={isLoading}>
               {isLoading ? 'Refreshing…' : 'Refresh'}
             </button>
 
@@ -47,7 +64,7 @@ export default function App() {
             <nav className={styles.pagination} aria-label="Pagination">
               <button
                 type="button"
-                className={styles.secondaryButton}
+                className={controls.button}
                 onClick={goToPrevious}
                 disabled={!hasPrevious || isLoading}
               >
@@ -55,7 +72,7 @@ export default function App() {
               </button>
               <button
                 type="button"
-                className={styles.secondaryButton}
+                className={controls.button}
                 onClick={goToNext}
                 disabled={!hasNext || isLoading}
               >
@@ -65,10 +82,31 @@ export default function App() {
           </div>
         </div>
 
-        <ErrorBanner message={error} onRetry={reload} />
+        <Banner tone="error" message={error} action={{ label: 'Retry', onClick: reload }} />
+        <Banner tone="error" message={mutations.error} onDismiss={mutations.dismissError} />
+        <Banner tone="success" message={mutations.notice} onDismiss={mutations.dismissNotice} />
 
-        <JobTable jobs={jobs} isLoading={isLoading} hasError={error !== null} />
+        <JobTable
+          jobs={jobs}
+          isLoading={isLoading}
+          hasError={error !== null}
+          pendingIds={mutations.pendingIds}
+          onChangeStatus={mutations.changeStatus}
+          onDelete={setJobToDelete}
+        />
       </main>
+
+      <ConfirmDialog
+        open={jobToDelete !== null}
+        title="Delete job?"
+        confirmLabel="Delete job"
+        onConfirm={confirmDelete}
+        onCancel={() => setJobToDelete(null)}
+      >
+        <p>
+          “{jobToDelete?.name}” and its entire status history will be permanently deleted.
+        </p>
+      </ConfirmDialog>
     </div>
   )
 }
